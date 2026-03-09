@@ -8,51 +8,55 @@ jobs:
   news:
     runs-on: ubuntu-latest
     steps:
+      - name: 安装Python
+        run: sudo apt-get update && sudo apt-get install -y python3 python3-pip
+
       - name: 获取新闻
         run: |
-          echo "📰 今日新闻摘要" > news.txt
-          echo "================" >> news.txt
-          echo "时间: $(date '+%Y-%m-%d %H:%M')" >> news.txt
-          echo "" >> news.txt
-          
-          # 微博热搜 - 使用移动端API
-          echo "【微博热搜 Top 10】" >> news.txt
-          curl -s "https://weibo.com/ajax/side/hotSearch" | python3 -c "
-import json,sys
-data = json.load(sys.stdin)
-for i, item in enumerate(data['data']['realtime'][:10], 1):
-    print(f'{i}. {item[\"raw_title\"]}')" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
-          echo "" >> news.txt
-          
-          # 百度热搜
-          echo "【百度热搜 Top 10】" >> news.txt
-          curl -s "https://top.baidu.com/board?tab=realtime" | python3 -c "
-import json,sys,re
-html = sys.stdin.read()
-import subprocess
-result = subprocess.run(['grep','-oP','item-name\"[^>]*>[^<]*'], input=html, capture_output=True, text=True)
-for line in result.stdout.strip().split('\n')[:10]:
-    print(line.replace('item-name\">',''))" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
-          echo "" >> news.txt
-          
-          # 知乎热榜
-          echo "【知乎热榜 Top 10】" >> news.txt
-          curl -s "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=10" | python3 -c "
-import json,sys
-data = json.load(sys.stdin)
-for i, item in enumerate(data['data'], 1):
-    print(f'{i}. {item[\"target\"][\"title\"]}')" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
-          echo "" >> news.txt
-          
-          # 今日头条热搜
-          echo "【今日头条热搜】" >> news.txt
-          curl -s "https://www.toutiao.com/hot-event/hot-board/?origin=web" | python3 -c "
-import json,sys
-data = json.load(sys.stdin)
-for i, item in enumerate(data['data'][:10], 1):
-    print(f'{i}. {item[\"Title\"]}')" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
-          
-          cat news.txt
+          python3 << 'EOF'
+import json
+import urllib.request
+import os
+
+news = []
+news.append("📰 今日新闻摘要")
+news.append("=" * 20)
+news.append("")
+
+# 微博热搜
+try:
+    url = "https://weibo.com/ajax/side/hotSearch"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=10) as response:
+        data = json.loads(response.read())
+        news.append("【微博热搜 Top 10】")
+        for i, item in enumerate(data['data']['realtime'][:10], 1):
+            news.append(f"{i}. {item['raw_title']}")
+        news.append("")
+except Exception as e:
+    news.append(f"微博获取失败: {e}")
+    news.append("")
+
+# 知乎热榜
+try:
+    url = "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=10"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=10) as response:
+        data = json.loads(response.read())
+        news.append("【知乎热榜 Top 10】")
+        for i, item in enumerate(data['data'][:10], 1):
+            news.append(f"{i}. {item['target']['title']}")
+        news.append("")
+except Exception as e:
+    news.append(f"知乎获取失败: {e}")
+    news.append("")
+
+# 写入文件
+with open('news.txt', 'w', encoding='utf-8') as f:
+    f.write('\n'.join(news))
+
+print('\n'.join(news))
+EOF
 
       - name: 发送邮件
         uses: dawidd6/action-send-mail@v3
