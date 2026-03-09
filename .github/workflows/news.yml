@@ -11,9 +11,9 @@ jobs:
       - name: 安装Python
         run: sudo apt-get update && sudo apt-get install -y python3
 
-      - name: 获取新闻
+      - name: 复制脚本
         run: |
-          cat > news.py << 'ENDOFPYTHON'
+          cat > get_news.py << 'EOF'
 import json
 import urllib.request
 
@@ -36,10 +36,10 @@ except Exception as e:
 with open("news.txt", "w", encoding="utf-8") as f:
     f.write("\n".join(news))
 print("\n".join(news))
-ENDOFPYTHON
+EOF
 
       - name: 运行脚本
-        run: python3 news.py
+        run: python3 get_news.py
 
       - name: 发送邮件
         uses: dawidd6/action-send-mail@v3
