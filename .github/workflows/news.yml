@@ -1,7 +1,7 @@
 name: 中文新闻推送
 on:
   schedule:
-    - cron: '31 7,18 * * *'
+    - cron: '0 8,18 * * *'
   workflow_dispatch:
 
 jobs:
@@ -12,17 +12,48 @@ jobs:
         run: |
           echo "📰 今日新闻摘要" > news.txt
           echo "================" >> news.txt
+          echo "时间: $(date '+%Y-%m-%d %H:%M')" >> news.txt
           echo "" >> news.txt
           
-          # 36kr科技
-          echo "【36Kr科技】" >> news.txt
-          curl -s "https://36kr.com/newsflashes" 2>/dev/null | grep -oP '<a[^>]*>[^<]*</a>' | sed 's/<[^>]*>//g' | grep -v "^$" | head -5 >> news.txt || echo "获取失败" >> news.txt
+          # 微博热搜 - 使用移动端API
+          echo "【微博热搜 Top 10】" >> news.txt
+          curl -s "https://weibo.com/ajax/side/hotSearch" | python3 -c "
+import json,sys
+data = json.load(sys.stdin)
+for i, item in enumerate(data['data']['realtime'][:10], 1):
+    print(f'{i}. {item[\"raw_title\"]}')" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
           echo "" >> news.txt
           
           # 百度热搜
-          echo "【百度热搜】" >> news.txt
-          curl -s "https://top.baidu.com/board?tab=realtime" 2>/dev/null | grep -oP 'item-name"[^>]*>[^<]*' | sed 's/.*>//g' | head -10 >> news.txt || echo "获取失败" >> news.txt
+          echo "【百度热搜 Top 10】" >> news.txt
+          curl -s "https://top.baidu.com/board?tab=realtime" | python3 -c "
+import json,sys,re
+html = sys.stdin.read()
+import subprocess
+result = subprocess.run(['grep','-oP','item-name\"[^>]*>[^<]*'], input=html, capture_output=True, text=True)
+for line in result.stdout.strip().split('\n')[:10]:
+    print(line.replace('item-name\">',''))" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
+          echo "" >> news.txt
           
+          # 知乎热榜
+          echo "【知乎热榜 Top 10】" >> news.txt
+          curl -s "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=10" | python3 -c "
+import json,sys
+data = json.load(sys.stdin)
+for i, item in enumerate(data['data'], 1):
+    print(f'{i}. {item[\"target\"][\"title\"]}')" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
+          echo "" >> news.txt
+          
+          # 今日头条热搜
+          echo "【今日头条热搜】" >> news.txt
+          curl -s "https://www.toutiao.com/hot-event/hot-board/?origin=web" | python3 -c "
+import json,sys
+data = json.load(sys.stdin)
+for i, item in enumerate(data['data'][:10], 1):
+    print(f'{i}. {item[\"Title\"]}')" >> news.txt 2>/dev/null || echo "获取失败" >> news.txt
+          
+          cat news.txt
+
       - name: 发送邮件
         uses: dawidd6/action-send-mail@v3
         with:
