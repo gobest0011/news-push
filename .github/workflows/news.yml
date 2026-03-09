@@ -1,0 +1,37 @@
+name: 中文新闻推送
+on:
+  schedule:
+    - cron: '0 8,18 * * *'
+  workflow_dispatch:
+
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 获取新闻
+        run: |
+          echo "📰 今日新闻摘要" > news.txt
+          echo "================" >> news.txt
+          echo "" >> news.txt
+          
+          # 36kr科技
+          echo "【36Kr科技】" >> news.txt
+          curl -s "https://36kr.com/newsflashes" 2>/dev/null | grep -oP '<a[^>]*>[^<]*</a>' | sed 's/<[^>]*>//g' | grep -v "^$" | head -5 >> news.txt || echo "获取失败" >> news.txt
+          echo "" >> news.txt
+          
+          # 百度热搜
+          echo "【百度热搜】" >> news.txt
+          curl -s "https://top.baidu.com/board?tab=realtime" 2>/dev/null | grep -oP 'item-name"[^>]*>[^<]*' | sed 's/.*>//g' | head -10 >> news.txt || echo "获取失败" >> news.txt
+          
+      - name: 发送邮件
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.qq.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USER }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: 📰 每日新闻摘要
+          to: 313413666@qq.com
+          from: 新闻助手 <${{ secrets.MAIL_USER }}>
+          body: file://news.txt
