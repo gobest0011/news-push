@@ -8,38 +8,26 @@ jobs:
   news:
     runs-on: ubuntu-latest
     steps:
-      - name: 安装Python
-        run: sudo apt-get update && sudo apt-get install -y python3
-
-      - name: 复制脚本
+      - name: 获取微博热搜
         run: |
-          cat > get_news.py << 'EOF'
-import json
-import urllib.request
-
-news = []
-news.append("今日新闻摘要")
-news.append("====================")
-news.append("")
-
-try:
-    url = "https://weibo.com/ajax/side/hotSearch"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=10) as response:
-        data = json.loads(response.read())
-        news.append("【微博热搜 Top 10】")
-        for i, item in enumerate(data["data"]["realtime"][:10], 1):
-            news.append(str(i) + ". " + item["raw_title"])
-except Exception as e:
-    news.append("微博热搜获取失败")
-
-with open("news.txt", "w", encoding="utf-8") as f:
-    f.write("\n".join(news))
-print("\n".join(news))
-EOF
-
-      - name: 运行脚本
-        run: python3 get_news.py
+          echo 'import json' > get_news.py
+          echo 'import urllib.request' >> get_news.py
+          echo 'news = []' >> get_news.py
+          echo 'news.append("今日新闻摘要")' >> get_news.py
+          echo 'news.append("====================")' >> get_news.py
+          echo 'try:' >> get_news.py
+          echo '    url = "https://weibo.com/ajax/side/hotSearch"' >> get_news.py
+          echo '    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})' >> get_news.py
+          echo '    with urllib.request.urlopen(req, timeout=10) as response:' >> get_news.py
+          echo '        data = json.loads(response.read())' >> get_news.py
+          echo '        news.append("【微博热搜 Top 10】")' >> get_news.py
+          echo '        for i, item in enumerate(data["data"]["realtime"][:10], 1):' >> get_news.py
+          echo '            news.append(str(i) + ". " + item["raw_title"])' >> get_news.py
+          echo 'except Exception as e:' >> get_news.py
+          echo '    news.append("获取失败")' >> get_news.py
+          echo 'with open("news.txt", "w", encoding="utf-8") as f:' >> get_news.py
+          echo '    f.write("\n".join(news))' >> get_news.py
+          python3 get_news.py
 
       - name: 发送邮件
         uses: dawidd6/action-send-mail@v3
